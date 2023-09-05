@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import { useState, useEffect} from "react";
 import { Searchbar } from './searchbar/searchbar';
 import { ImageGallery } from './image_gallery/image-gallery';
 import { Button } from './button/button';
@@ -6,78 +6,75 @@ import { Loader } from './loader/loader';
 import { Modal } from './modal/modal'
 import { getImages } from './data';
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    page: 1,
-    loading: false,
-    showModal: false,
-    modalImageSrc: '',
-    modalImageAlt: '',
-  };
-
-  openModal = (imageSrc, imageAlt) => {
-    this.setState({
-      showModal: true,
-      modalImageSrc: imageSrc,
-      modalImageAlt: imageAlt,
-    });
-  };
-
-  closeModal = () => {
-    this.setState({
-      showModal: false,
-      modalImageSrc: '',
-      modalImageAlt: '',
-    });
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalImageSrc, setModalImageSrc] = useState('');
+  const [modalImageAlt, setModalImageAlt] = useState('');
+  const [prevQuery, setPrevQuery] = useState('');
+  const [prevPage, setPrevPage] = useState(1);
 
 
-  changeQuery = (newQuery) => {
-    this.setState({
-      query: `${Date.now()}/${newQuery}`,
-      images: [],
-      page: 1,
-    })
-  };
-
-  async componentDidMount() {
-    // const { query, page } = this.state;
-    // const images = await getImages(query, page);
-    // this.setState({ images });
+  const openModal = (imageSrc, imageAlt) => {
+    setShowModal(true);
+    setModalImageSrc(imageSrc);
+    setModalImageAlt(imageAlt);
   }
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (prevState.query !== this.state.query || prevState.page !== this.state.page) {
-      this.setState({ loading: true });
-      const slashIndex = this.state.query.indexOf('/');
-      const queryWithoutReqId = this.state.query.substring(slashIndex + 1); 
-      console.log(`Http запрос за ${queryWithoutReqId}, і ${this.state.page}`);
-      const newImages = await getImages({ query: queryWithoutReqId, page: this.state.page });
-      this.setState((prevState) => ({ loading: false, images: [...prevState.images, ...newImages] }));
+  const closeModal = () => {
+    setShowModal(false);
+    setModalImageSrc('');
+    setModalImageAlt('');
+  };
+
+
+  const changeQuery = (newQuery) => {
+    setQuery(`${Date.now()}/${newQuery}`);
+    setImages([]);
+    setPage(1);
+  };
+
+   useEffect(() => {
+    if (
+      prevQuery !== query || prevPage !== page
+    ) 
+    {
+      setLoading(true);
+      const slashIndex = query.indexOf('/');
+      const queryWithoutReqId = query.substring(slashIndex + 1);
+      console.log(`Http запрос за ${queryWithoutReqId}, і ${page}`);
+      async function fetchData() {
+        const newImages = await getImages({
+          query: queryWithoutReqId,page,
+        });
+        setLoading(false)
+        setImages(prevImages => [...prevImages, ...newImages]);
+      }
+      fetchData();
     }
+    setPrevQuery(query);
+    setPrevPage(page);
+  }, [query, page, prevQuery, prevPage]);
+
+  const handleLoadMore = () => {
+    setPage(prevPage => prevPage + 1)
   }
 
-  handleLoadMore = async () => {
-    this.setState((prevState) => ({ page: prevState.page + 1 }));
-   
-  }
 
-
-  render() {
-    const { loading, images, showModal, modalImageSrc, modalImageAlt} = this.state;
-    const hasMoreImages = images.length > 11;
+  const hasMoreImages = images.length > 11;
+  
     return (
       <div>
-        <Searchbar changeQuery={this.changeQuery}/>
-        <ImageGallery images={images} openModal={this.openModal}/>
-        {hasMoreImages && <Button handleLoadMore={this.handleLoadMore}/>}
+        <Searchbar changeQuery={changeQuery}/>
+        <ImageGallery images={images} openModal={openModal}/>
+        {hasMoreImages && <Button handleLoadMore={handleLoadMore}/>}
         {loading && <Loader />}
         {showModal && (
-          <Modal imageSrc={modalImageSrc} altText={modalImageAlt} onClose={this.closeModal} />
+          <Modal imageSrc={modalImageSrc} altText={modalImageAlt} onClose={closeModal} />
         )}
       </div>
     );
-  }
 }
